@@ -1,7 +1,7 @@
-const fs = require("fs");
+import fs from "fs";
 
 // Function to read JSON data from file
-function read() {
+const read=()=> {
   try {
     const data = fs.readFileSync("./db.json", "utf8");
     const parsedData = JSON.parse(data);
@@ -22,7 +22,4 @@ function write(data) {
   }
 }
 
-module.exports = {
-    read,
-    write
-}
+export {read, write}

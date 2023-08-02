@@ -1,75 +1,95 @@
-const url = require("url");
-const helper = require("../helper");
+import url from "url";
+import { read , write } from "../helper.js";
 
 const getUsers = (req, res) => {
-  res.writeHead(200, { "Content-Type": "application/json" });
-
-  const storedData = helper.read();
-
-  // checking if name is present in query parameter
+    const data = read();
+  
   const parsedUrl = url.parse(req.url, true);
+  
+  res.writeHead(200, { "Content-Type": "application/json" });
+  
   if (parsedUrl.query.name) {
-    const result = storedData.filter(
+    const result = data.filter(
       (item) => item.name.toLocaleLowerCase().includes(parsedUrl.query.name.toLocaleLowerCase())
     );
-    res.end(JSON.stringify(result));
+    res.endJSON.stringify({
+      code: 200,
+      remark: "success",
+      data: result,
+    });
   } else {
-    res.end(JSON.stringify(storedData));
+    res.endJSON.stringify({
+      code: 200,
+      remark: "success",
+      data: data,
+    })
   }
 };
 
 const createUser = (req, res) => {
   // reading data from rquest body
   let body = "";
+
   req.on("data", (chunk) => {
     body += chunk;
   });
 
   req.on("end", () => {
-    const { name, email } = JSON.parse(body);
-    if (name && email) {
-      const storedData = helper.read();
+    
+    const parsedData = JSON.parse(body);
+    const storedData = read();
 
-      const newUserID =
-        storedData.length > 0 ? storedData[storedData.length - 1]["id"] + 1 : 1;
-      const updatedData = [...storedData, { id: newUserID, name, email }];
-      helper.write(updatedData);
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          code: 200,
-          remark: "User added successfully",
-          data: null,
-        })
-      );
-    } else {
-      throw new Error("Data not provided");
+    let updatedData = [];
+    if (storedData.length >= 1){
+      console.log("in if");
+      let newuserId = storedData [storedData.length -1]["id"] + 1;
+      updatedData = [
+        ...storedData ,
+        {
+          id: newuserId,
+                name: parsedData.name,
+                email: parsedData.email,
+        },
+      ];
+    }else{
+      console.log("in else");
+      updatedData = [{
+        id: 1,
+        name: parsedData.name,
+        email: parsedData.email,
+      }]
     }
+    write(updatedData);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(
+      JSON.stringify({
+        code: 200,
+        remark: "User created",
+        data: null,
+      })
+    );
   });
-};
+}
 
 const updateUser = (req, res) => {
-  // reading data from rquest body
+
   let body = "";
+
   req.on("data", (chunk) => {
     body += chunk;
   });
 
   req.on("end", () => {
-    const { id, name, email } = JSON.parse(body);
+    const parsedData = JSON.parse(body);
+    const { id, name, email } =parsedData;
 
-    if (id && name && email) {
-      const storedData = helper.read();
+    const storedData = read();
 
-      // searching and editing the particular user
-      const userToEditIndex = storedData.findIndex((item) => item.id === id);
-      storedData[userToEditIndex] = {
-        ...storedData[userToEditIndex],
-        name,
-        email,
-      };
+    const userToEditIndex = storedData.findIndex((item) => item.id === id);
+    storedData[userToEditIndex] = {id, name, email};
 
-      helper.write(storedData);
+    write(storedData);
+
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -78,27 +98,22 @@ const updateUser = (req, res) => {
           data: null,
         })
       );
-    } else {
-      throw new Error("Data not provided");
-    }
   });
 };
 
 const deleteUser = (req, res) => {
-  const storedData = helper.read();
-
-  // accessing the user id from query
+  
   const parsedUrl = url.parse(req.url, true);
-  const userToDeleteIndex = storedData.findIndex(
-    (item) => item.id === Number(parsedUrl.query.id)
-  );
 
-  res.writeHead(200, { "Content-Type": "application/json" });
+  if (parsedUrl.query.id) {
+  
+    const storedData = read();
+  
+  const userToDeleteIndex = storedData.findIndex((item) => item.id == parsedUrl.query.id);
 
-  if (userToDeleteIndex != -1) {
     storedData.splice(userToDeleteIndex, 1);
-    helper.write(storedData);
-
+    write(storedData);
+    res.writeHead(200, { "Content-Type": "application/json" });
     res.end(
       JSON.stringify({
         code: 200,
@@ -110,11 +125,11 @@ const deleteUser = (req, res) => {
     res.end(
       JSON.stringify({
         code: 400,
-        remark: "User not found",
+        remark: "User does't exist",
         data: null,
       })
     );
   }
 };
 
-module.exports = { getUsers, createUser, updateUser, deleteUser };
+export { getUsers, createUser, updateUser, deleteUser };

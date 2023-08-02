@@ -9,4 +9,4 @@ const home = (req, res) => {
     );
   };
   
-  module.exports = { home }
+export default { home }
