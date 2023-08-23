@@ -1,14 +1,17 @@
-import express from "express";
+import express, { json } from "express";
 import cors from "cors";
-import dotenv from "dotenv"
-
-//Import Router
+import dotenv from "dotenv";
+import  colors  from "colors";
+import connectDB from "./config/db.js";
+// Load env variables
 import UserRouter from './Routers/UserRouter.js'
 
-const app =express();
-
 dotenv.config();
+connectDB();
 
+const app = express();
+
+app.use(express.json())
 app.use(cors());
 
 app.get('/',(req,res)=>{
@@ -17,7 +20,7 @@ app.get('/',(req,res)=>{
 
 app.use('/users',UserRouter)
 
-  const PORT = 5000;
+const PORT =5000;
 app.listen(PORT,()=>{
   console.log(`Server is runnig on http://localhost:${PORT}`);
 })

@@ -1,135 +1,94 @@
-import url from "url";
-import { read , write } from "../helper.js";
 
-const getUsers = (req, res) => {
-    const data = read();
-  
-  const parsedUrl = url.parse(req.url, true);
-  
-  res.writeHead(200, { "Content-Type": "application/json" });
-  
-  if (parsedUrl.query.name) {
-    const result = data.filter(
-      (item) => item.name.toLocaleLowerCase().includes(parsedUrl.query.name.toLocaleLowerCase())
-    );
-    res.endJSON.stringify({
-      code: 200,
-      remark: "success",
-      data: result,
-    });
-  } else {
-    res.endJSON.stringify({
-      code: 200,
-      remark: "success",
-      data: data,
-    })
-  }
-};
+import User from "../models/useModel.js"
+import asyncHandler from "express-async-handler";
 
-const createUser = (req, res) => {
-  // reading data from rquest body
-  let body = "";
-
-  req.on("data", (chunk) => {
-    body += chunk;
-  });
-
-  req.on("end", () => {
+const getUsers = asyncHandler(async (req, res) => {
+  try {
     
-    const parsedData = JSON.parse(body);
-    const storedData = read();
-
-    let updatedData = [];
-    if (storedData.length >= 1){
-      console.log("in if");
-      let newuserId = storedData [storedData.length -1]["id"] + 1;
-      updatedData = [
-        ...storedData ,
-        {
-          id: newuserId,
-                name: parsedData.name,
-                email: parsedData.email,
-        },
-      ];
-    }else{
-      console.log("in else");
-      updatedData = [{
-        id: 1,
-        name: parsedData.name,
-        email: parsedData.email,
-      }]
-    }
-    write(updatedData);
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
-        code: 200,
-        remark: "User created",
-        data: null,
-      })
+    const users = await User.find(
+      req.query.name
+        ? {
+            name: {
+              $regex: req.query.name,
+              $options: "i",
+            },
+          }
+        : {}
     );
-  });
-}
-
-const updateUser = (req, res) => {
-
-  let body = "";
-
-  req.on("data", (chunk) => {
-    body += chunk;
-  });
-
-  req.on("end", () => {
-    const parsedData = JSON.parse(body);
-    const { id, name, email } =parsedData;
-
-    const storedData = read();
-
-    const userToEditIndex = storedData.findIndex((item) => item.id === id);
-    storedData[userToEditIndex] = {id, name, email};
-
-    write(storedData);
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          code: 200,
-          remark: "User updated successfully",
-          data: null,
-        })
-      );
-  });
-};
-
-const deleteUser = (req, res) => {
-  
-  const parsedUrl = url.parse(req.url, true);
-
-  if (parsedUrl.query.id) {
-  
-    const storedData = read();
-  
-  const userToDeleteIndex = storedData.findIndex((item) => item.id == parsedUrl.query.id);
-
-    storedData.splice(userToDeleteIndex, 1);
-    write(storedData);
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({
-        code: 200,
-        remark: "User deleted successfully",
-        data: null,
-      })
-    );
-  } else {
-    res.end(
-      JSON.stringify({
-        code: 400,
-        remark: "User does't exist",
-        data: null,
-      })
-    );
+    res.status(200).json({ code: 200, remark: "success", data: users });
+  } catch (error) {
+    res.status(500).json({ code: 500, remark: "fail", error: error });
   }
-};
+});
+
+const createUser = asyncHandler(async (req, res) => {
+  try {
+    const { name, email } = req.body;
+
+    if (name && email) {
+      const user = new User({
+        name,
+        email,
+      });
+
+      await user.save();
+      res.status(200).json({ code: 200, remark: "user created" });
+    } else {
+      res.status(404).json({ code: 404, remark: "please send valid data" });
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ code: 500, remark: "fail", error: error });
+  }
+});
+
+const updateUser = asyncHandler(async (req, res) => {
+  try {
+    const { name, email, id } = req.body;
+
+    if (!id) {
+      res.status(404).json({ code: 404, remark: "please send user id" });
+      return;
+    }
+
+    const user = await User.findById(id);
+
+    if (!user) {
+      res.status(404).json({ code: 404, remark: "user does not exist" });
+      return;
+    }
+
+    user.name = name || user.name;
+    user.email = email || user.email;
+
+    await user.save();
+
+    res.status(200).json({ code: 200, remark: "user updated" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ code: 500, remark: "fail", error: error });
+  }
+});
+
+const deleteUser = asyncHandler(async(req,res)=>{
+  try {
+    if(req.query.id){
+      const user = await User.findByIdAndDelete({_id:req.query.id});
+      
+      if(!user){
+        res.status(404).json({ code: 400, remark: "user does not exist" });
+        return;
+      }
+
+      res.status(200).json({ code: 200, remark: "user deleted" });
+
+    } else{
+      res.status(404).json({ code: 400, remark: "please send user id" });
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ code: 500, remark: "fail", error });
+  }
+})
 
 export { getUsers, createUser, updateUser, deleteUser };
